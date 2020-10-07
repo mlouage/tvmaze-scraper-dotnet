@@ -11,10 +11,21 @@ namespace TvMaze.Entities
         public TvMazeContext(DbContextOptions<TvMazeContext> options) :
             base(options)
         {
+
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.Entity<Show>()
+                .Property(s => s.Id)
+                .ValueGeneratedNever()
+                .IsRequired();
+
+            modelBuilder.Entity<Actor>()
+                .Property(s => s.Id)
+                .ValueGeneratedNever()
+                .IsRequired();
+
             modelBuilder.Entity<ShowActor>().HasKey(c => new { c.ShowId, c.ActorId });
         }
     }

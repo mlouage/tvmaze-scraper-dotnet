@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Net.Mime;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
@@ -12,7 +14,13 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Polly;
+using Polly.Extensions.Http;
+using Polly.Timeout;
+using TvMaze.Configuration;
 using TvMaze.Entities;
+using TvMaze.Http;
+using TvMaze.Services;
 
 namespace TvMaze
 {
@@ -28,7 +36,31 @@ namespace TvMaze
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddDbContext<TvMazeContext>(options =>
-                options.UseSqlServer(Configuration.GetConnectionString("DefaultConnection")));
+                options
+                    .UseSqlServer(Configuration.GetConnectionString("DefaultConnection"))
+                    .EnableDetailedErrors()
+                    .EnableSensitiveDataLogging()
+            );
+
+            services.Configure<TvMazeOptions>(Configuration.GetSection("TvMazeOptions"));
+
+            services.AddTransient<IScraperWorker, ScraperWorker>();
+
+            services.AddHostedService<ScraperService>();
+
+            var registry = services.AddPolicyRegistry();
+
+            var defaultPolicy = Policy
+                .HandleResult<HttpResponseMessage>(message => message.StatusCode == HttpStatusCode.TooManyRequests)
+                .OrTransientHttpError()
+                .WaitAndRetryAsync(5, retryAttempt =>
+                    TimeSpan.FromSeconds(Math.Pow(2, retryAttempt))
+                );
+
+            registry.Add("Default", defaultPolicy);
+
+            services.AddHttpClient<TvMazeClient>()
+                .AddPolicyHandlerFromRegistry("Default");
 
             services.AddControllers();
         }

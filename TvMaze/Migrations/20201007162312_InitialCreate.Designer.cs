@@ -10,7 +10,7 @@ using TvMaze.Entities;
 namespace TvMaze.Migrations
 {
     [DbContext(typeof(TvMazeContext))]
-    [Migration("20201007094542_InitialCreate")]
+    [Migration("20201007162312_InitialCreate")]
     partial class InitialCreate
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -24,9 +24,7 @@ namespace TvMaze.Migrations
             modelBuilder.Entity("TvMaze.Entities.Actor", b =>
                 {
                     b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
+                        .HasColumnType("int");
 
                     b.Property<DateTime?>("DateOfBirth")
                         .HasColumnType("datetime2");
@@ -42,9 +40,7 @@ namespace TvMaze.Migrations
             modelBuilder.Entity("TvMaze.Entities.Show", b =>
                 {
                     b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
+                        .HasColumnType("int");
 
                     b.Property<string>("Name")
                         .HasColumnType("nvarchar(max)");
