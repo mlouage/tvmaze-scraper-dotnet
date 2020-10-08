@@ -40,6 +40,7 @@ namespace TvMaze
                     .UseSqlServer(Configuration.GetConnectionString("DefaultConnection"))
                     .EnableDetailedErrors()
                     .EnableSensitiveDataLogging()
+
             );
 
             services.Configure<TvMazeOptions>(Configuration.GetSection("TvMazeOptions"));
@@ -70,6 +71,7 @@ namespace TvMaze
             try
             {
                 tvMazeContext.Database.Migrate();
+                Console.WriteLine("Done migrating database.");
             }
             catch (Exception exception)
             {

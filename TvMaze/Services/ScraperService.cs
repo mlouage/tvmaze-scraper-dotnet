@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -24,8 +25,6 @@ namespace TvMaze.Services
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            _logger.LogInformation("Starting backgroundservice...");
-
             try
             {
                 using (var scope = _services.CreateScope())
@@ -33,6 +32,17 @@ namespace TvMaze.Services
                     var worker = scope.ServiceProvider.GetRequiredService<IScraperWorker>();
                     var tvMazeContext = scope.ServiceProvider.GetRequiredService<TvMazeContext>();
                     var tvMazeOptions = scope.ServiceProvider.GetRequiredService<IOptions<TvMazeOptions>>().Value;
+
+                    while (true)
+                    {
+                        if (await tvMazeContext.Database.CanConnectAsync(stoppingToken))
+                        {
+                            break;
+                        }
+
+                        _logger.LogInformation("Database not ready yet...");
+                        await Task.Delay(5000, stoppingToken);
+                    }
 
                     var page = CalculatePage(tvMazeContext, tvMazeOptions);
 
@@ -51,6 +61,12 @@ namespace TvMaze.Services
 
                         foreach (var show in shows)
                         {
+                            if (await tvMazeContext.Shows.AnyAsync(s => s.Id == show.Id, stoppingToken))
+                            {
+                                _logger.LogInformation($"Show {show.Id} - {show.Name} was already fetched.");
+                                continue;
+                            }
+
                             var actors = (await worker.GetActorsForShow(show.Id)).ToList();
 
                             _logger.LogInformation($"Received {actors.Count()} actors for {show.Name}.");
