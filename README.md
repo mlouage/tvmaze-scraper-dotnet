@@ -30,5 +30,5 @@ dotnet run
 - Sql Server
 
 # To improve
-- Add unit tests
+- ~~Add tests~~
 - Add Docker support to make running the solution easier
