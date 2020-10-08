@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using TvMaze.Configuration;
 using TvMaze.Entities;
+using TvMaze.Http;
 
 namespace TvMaze.Services
 {
@@ -33,66 +35,30 @@ namespace TvMaze.Services
                     var tvMazeContext = scope.ServiceProvider.GetRequiredService<TvMazeContext>();
                     var tvMazeOptions = scope.ServiceProvider.GetRequiredService<IOptions<TvMazeOptions>>().Value;
 
-                    while (true)
-                    {
-                        if (await tvMazeContext.Database.CanConnectAsync(stoppingToken))
-                        {
-                            break;
-                        }
-
-                        _logger.LogInformation("Database not ready yet...");
-                        await Task.Delay(5000, stoppingToken);
-                    }
+                    await WaitForDatabase(stoppingToken, tvMazeContext);
 
                     var page = CalculatePage(tvMazeContext, tvMazeOptions);
 
-                    _logger.LogInformation($"Getting shows for page {page}.");
-
                     while (true)
                     {
-                        var shows = (await worker.GetShowsForPage(page));
+                        var shows = await worker.GetShowsForPage(page);
 
                         if (shows == null)
                         {
                             break;
                         }
 
-                        _logger.LogInformation($"Received {shows.Count()} shows");
-
                         foreach (var show in shows)
                         {
-                            if (await tvMazeContext.Shows.AnyAsync(s => s.Id == show.Id, stoppingToken))
-                            {
-                                _logger.LogInformation($"Show {show.Id} - {show.Name} was already fetched.");
-                                continue;
-                            }
+                            if (await CheckIfShowIsAlreadySaved(stoppingToken, tvMazeContext, show)) continue;
 
                             var actors = (await worker.GetActorsForShow(show.Id)).ToList();
 
-                            _logger.LogInformation($"Received {actors.Count()} actors for {show.Name}.");
+                            var actorsToAdd = GetNewActorsToAdd(tvMazeContext, actors);
 
-                            var existingActorIds = tvMazeContext.Actors.Select(a => a.Id).ToList();
-                            var actorsToAdd = actors.Where(actor => !existingActorIds.Contains(actor.Id))
-                                .GroupBy(a => a.Id).Select(a => a.First()).ToList();
+                            await AddActors(stoppingToken, tvMazeContext, actorsToAdd);
 
-                            await tvMazeContext.Actors.AddRangeAsync(actorsToAdd
-                                .Select(actor => new Actor
-                                {
-                                    Id = actor.Id,
-                                    Name = actor.Name,
-                                    DateOfBirth = actor.BirthDay
-                                }), stoppingToken);
-
-                            await tvMazeContext.Shows.AddAsync(new Show
-                            {
-                                Id = show.Id,
-                                Name = show.Name,
-                                ShowActors = actorsToAdd
-                                    .Select(actor => new ShowActor
-                                    {
-                                        ShowId = show.Id, ActorId = actor.Id
-                                    }).ToList()
-                            }, stoppingToken);
+                            await AddShow(stoppingToken, tvMazeContext, show, actorsToAdd);
 
                             try
                             {
@@ -119,6 +85,74 @@ namespace TvMaze.Services
             }
         }
 
+        public override async Task StopAsync(CancellationToken stoppingToken)
+        {
+            _logger.LogInformation("Stopping backgroundservice...");
+
+            await base.StopAsync(stoppingToken);
+        }
+
+        private static async Task AddShow(CancellationToken stoppingToken, TvMazeContext tvMazeContext, ShowDto show,
+            IEnumerable<ActorDto> actorsToAdd)
+        {
+            await tvMazeContext.Shows.AddAsync(new Show
+            {
+                Id = show.Id,
+                Name = show.Name,
+                ShowActors = actorsToAdd
+                    .Select(actor => new ShowActor
+                    {
+                        ShowId = show.Id, ActorId = actor.Id
+                    }).ToList()
+            }, stoppingToken);
+        }
+
+        private static async Task AddActors(CancellationToken stoppingToken, TvMazeContext tvMazeContext,
+            IEnumerable<ActorDto> actorsToAdd)
+        {
+            await tvMazeContext.Actors.AddRangeAsync(actorsToAdd
+                .Select(actor => new Actor
+                {
+                    Id = actor.Id,
+                    Name = actor.Name,
+                    DateOfBirth = actor.BirthDay
+                }), stoppingToken);
+        }
+
+        private async Task<bool> CheckIfShowIsAlreadySaved(CancellationToken stoppingToken, TvMazeContext tvMazeContext,
+            ShowDto show)
+        {
+            if (await tvMazeContext.Shows.AnyAsync(s => s.Id == show.Id, stoppingToken))
+            {
+                _logger.LogInformation($"Show {show.Id} - {show.Name} was already fetched.");
+                return true;
+            }
+
+            return false;
+        }
+
+        private static List<ActorDto> GetNewActorsToAdd(TvMazeContext tvMazeContext, IEnumerable<ActorDto> actors)
+        {
+            var existingActorIds = tvMazeContext.Actors.Select(a => a.Id).ToList();
+            var actorsToAdd = actors.Where(actor => !existingActorIds.Contains(actor.Id))
+                .GroupBy(a => a.Id).Select(a => a.First()).ToList();
+            return actorsToAdd;
+        }
+
+        private async Task WaitForDatabase(CancellationToken stoppingToken, TvMazeContext tvMazeContext)
+        {
+            while (true)
+            {
+                if (await tvMazeContext.Database.CanConnectAsync(stoppingToken))
+                {
+                    break;
+                }
+
+                _logger.LogInformation("Database not ready yet...");
+                await Task.Delay(5000, stoppingToken);
+            }
+        }
+
         private static int CalculatePage(TvMazeContext tvMazeContext, TvMazeOptions tvMazeOptions)
         {
             var page = 0;
@@ -130,13 +164,6 @@ namespace TvMaze.Services
                 MidpointRounding.ToZero));
 
             return page;
-        }
-
-        public override async Task StopAsync(CancellationToken stoppingToken)
-        {
-            _logger.LogInformation("Stopping backgroundservice...");
-
-            await base.StopAsync(stoppingToken);
         }
     }
 }
