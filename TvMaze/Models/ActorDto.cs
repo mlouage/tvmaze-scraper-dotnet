@@ -1,6 +1,6 @@
 using System;
 
-namespace TvMaze.Http
+namespace TvMaze.Models
 {
     public class ActorDto
     {

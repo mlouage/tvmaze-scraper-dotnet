@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using TvMaze.Http;
+using TvMaze.Models;
 
 namespace TvMaze.Services
 {

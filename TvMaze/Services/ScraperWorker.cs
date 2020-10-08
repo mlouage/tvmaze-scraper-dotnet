@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Newtonsoft.Json;
 
 using TvMaze.Http;
+using TvMaze.Models;
 
 namespace TvMaze.Services
 {

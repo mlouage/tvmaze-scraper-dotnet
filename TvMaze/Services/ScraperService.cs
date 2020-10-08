@@ -11,6 +11,7 @@ using Microsoft.Extensions.Options;
 using TvMaze.Configuration;
 using TvMaze.Entities;
 using TvMaze.Http;
+using TvMaze.Models;
 
 namespace TvMaze.Services
 {
@@ -39,7 +40,7 @@ namespace TvMaze.Services
 
                     var page = CalculatePage(tvMazeContext, tvMazeOptions);
 
-                    while (true)
+                    while (page < 3)
                     {
                         var shows = await worker.GetShowsForPage(page);
 

@@ -46,6 +46,7 @@ namespace TvMaze
             services.Configure<TvMazeOptions>(Configuration.GetSection("TvMazeOptions"));
 
             services.AddTransient<IScraperWorker, ScraperWorker>();
+            services.AddTransient<IShowsService, ShowsService>();
 
             services.AddHostedService<ScraperService>();
 

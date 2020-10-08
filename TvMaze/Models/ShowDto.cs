@@ -1,4 +1,4 @@
-namespace TvMaze.Http
+namespace TvMaze.Models
 {
     public class ShowDto
     {
