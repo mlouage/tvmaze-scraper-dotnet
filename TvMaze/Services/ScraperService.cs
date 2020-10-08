@@ -10,7 +10,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using TvMaze.Configuration;
 using TvMaze.Entities;
-using TvMaze.Http;
 using TvMaze.Models;
 
 namespace TvMaze.Services
@@ -40,7 +39,7 @@ namespace TvMaze.Services
 
                     var page = CalculatePage(tvMazeContext, tvMazeOptions);
 
-                    while (page < 3)
+                    while (page < 3) // should be while (true) but the TvMaze is so huge I cut it off locally at 3 pages
                     {
                         var shows = await worker.GetShowsForPage(page);
 

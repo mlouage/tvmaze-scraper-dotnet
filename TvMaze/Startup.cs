@@ -14,6 +14,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.OpenApi.Models;
 using Polly;
 using Polly.Extensions.Http;
 using Polly.Timeout;
@@ -40,7 +41,6 @@ namespace TvMaze
                     .UseSqlServer(Configuration.GetConnectionString("DefaultConnection"))
                     .EnableDetailedErrors()
                     .EnableSensitiveDataLogging()
-
             );
 
             services.Configure<TvMazeOptions>(Configuration.GetSection("TvMazeOptions"));
@@ -50,21 +50,14 @@ namespace TvMaze
 
             services.AddHostedService<ScraperService>();
 
-            var registry = services.AddPolicyRegistry();
-
-            var defaultPolicy = Policy
-                .HandleResult<HttpResponseMessage>(message => message.StatusCode == HttpStatusCode.TooManyRequests)
-                .OrTransientHttpError()
-                .WaitAndRetryAsync(5, retryAttempt =>
-                    TimeSpan.FromSeconds(Math.Pow(2, retryAttempt))
-                );
-
-            registry.Add("Default", defaultPolicy);
+            services.AddPolly();
 
             services.AddHttpClient<TvMazeClient>()
                 .AddPolicyHandlerFromRegistry("Default");
 
             services.AddControllers();
+
+            services.AddSwaggerGen();
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env, TvMazeContext tvMazeContext)
@@ -89,6 +82,13 @@ namespace TvMaze
             app.UseRouting();
 
             app.UseAuthorization();
+
+            app.UseSwagger();
+            app.UseSwaggerUI(c =>
+            {
+                c.SwaggerEndpoint("/swagger/v1/swagger.json", "TvMaze API V1");
+                c.RoutePrefix = string.Empty;
+            });
 
             app.UseEndpoints(endpoints => { endpoints.MapControllers(); });
         }
