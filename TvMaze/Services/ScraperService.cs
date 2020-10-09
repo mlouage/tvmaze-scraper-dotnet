@@ -27,6 +27,8 @@ namespace TvMaze.Services
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            _logger.LogInformation("Starting backgroundservice...");
+
             try
             {
                 using (var scope = _services.CreateScope())
@@ -39,7 +41,7 @@ namespace TvMaze.Services
 
                     var page = CalculatePage(tvMazeContext, tvMazeOptions);
 
-                    while (page < 3) // should be while (true) but the TvMaze API is so huge I cut it off locally at 3 pages
+                    while (tvMazeOptions.ContinueScraping)
                     {
                         var shows = await worker.GetShowsForPage(page);
 

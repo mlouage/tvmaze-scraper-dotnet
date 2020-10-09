@@ -4,5 +4,6 @@ namespace TvMaze.Configuration
     {
         public string Url { get; set; }
         public double MaxNumberOfShowsPerPage { get; set; }
+        public bool ContinueScraping { get; set; }
     }
 }
